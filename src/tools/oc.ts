@@ -4,6 +4,7 @@
  */
 import { join } from "node:path"
 import { existsSync } from "node:fs"
+import { readFile } from "node:fs/promises"
 import { z } from "zod"
 import { escribir } from "../core/archivos.ts"
 import { OrdenCompraSchema, PaqueteSchema, type Maestros, type Paquete, type Solicitud } from "../core/esquemas.ts"
@@ -58,12 +59,40 @@ function resumenValidacion(v: Validacion) {
   }
 }
 
+/** Último resultado registrado en out/control.csv por solicitud_id (creada, bloqueado, pendiente…). */
+async function ultimosIntentos(ctx: Ctx): Promise<Map<string, string>> {
+  const mapa = new Map<string, string>()
+  const csv = await readFile(join(dirOut(ctx), "control.csv"), "utf8").catch(() => "")
+  for (const linea of csv.split("\n").slice(1)) {
+    const [id, resultado] = linea.split(",")
+    if (id && resultado) mapa.set(id, resultado)
+  }
+  return mapa
+}
+
 export const listar_casos = herramienta({
-  description: "Lista las solicitudes de compra disponibles (carpeta, id de solicitud y descripción).",
+  description: "Lista las solicitudes de compra disponibles con su estado actual (sin procesar, pendiente de confirmación, bloqueada u OC creada con su número).",
   args: {},
   async execute(_args, ctx) {
     try {
-      return exito(await listarCasos(ctx))
+      const casos = await listarCasos(ctx)
+      const sap = new SapMock(dirOut(ctx), [])
+      const intentos = await ultimosIntentos(ctx)
+      const conEstado = await Promise.all(
+        casos.map(async (c) => {
+          const registro = c.solicitud_id ? await sap.buscarRegistro(c.solicitud_id) : null
+          const intento = c.solicitud_id ? intentos.get(c.solicitud_id) : undefined
+          const estado = registro
+            ? `OC creada ${registro.numero_oc}`
+            : intento === "bloqueado"
+              ? "bloqueada (no se puede crear OC)"
+              : intento === "pendiente"
+                ? "pendiente de confirmación"
+                : "sin procesar"
+          return { ...c, estado, numero_oc: registro?.numero_oc ?? null }
+        }),
+      )
+      return exito(conEstado)
     } catch (e) {
       return fallo(`No se pudieron listar los casos: ${(e as Error).message}`)
     }
