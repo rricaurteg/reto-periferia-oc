@@ -2,7 +2,7 @@
 
 Reto técnico 03 · Periferia IT Group. Agente que lee el paquete de compra (solicitud, cotización, aprobación, factura), lo valida contra los maestros con las reglas RC1–RC10, construye la OC, genera la evidencia de aprobación (TXT + PDF con sha256) y la crea en un SAP simulado, pidiendo confirmación humana en las excepciones.
 
-- **Link de prueba:** `https://<tu-servicio>.onrender.com` *(plan gratuito: si estuvo inactivo, la primera carga tarda ~1 minuto)*
+- **Link de prueba:** https://reto-periferia-oc-tk9f.onrender.com *(plan gratuito: si estuvo inactivo, la primera carga tarda ~1 minuto)*
 - **Documento de solución:** [SOLUCION.md](SOLUCION.md)
 - **Acceso:** el link es público, sin clave.
 
