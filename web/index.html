@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agente OC · SAP simulado</title>
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+<style>
+  :root {
+    --bg: #f5f6f4; --panel: #ffffff; --ink: #1c2321; --muted: #5f6b67; --line: #dfe3e0;
+    --accent: #1f6f50; --accent-soft: #e4f1ea; --warn: #9a6200; --warn-soft: #fff4dc; --warn-line: #f0c46a;
+    --err: #a3342b; --err-soft: #fbe9e7; --ok: #1f6f50; --code: #f0f2f0; --user: #1f3b33;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #121614; --panel: #1a201d; --ink: #e6ebe8; --muted: #9aa7a2; --line: #2c3532;
+      --accent: #5cc195; --accent-soft: #1d3329; --warn: #f0c46a; --warn-soft: #2e2615; --warn-line: #7a5a1c;
+      --err: #f08a80; --err-soft: #3a1f1c; --ok: #5cc195; --code: #232b28; --user: #2a4a40;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 20px; border-bottom: 1px solid var(--line); background: var(--panel); position: sticky; top: 0; z-index: 2; }
+  header h1 { font-size: 16px; margin: 0; letter-spacing: .2px; }
+  header h1 span { color: var(--muted); font-weight: 400; }
+  .badge { font-size: 12px; padding: 3px 9px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); white-space: nowrap; }
+  .badge.off { background: var(--err-soft); color: var(--err); }
+  main { display: grid; grid-template-columns: 260px 1fr; gap: 16px; padding: 16px 20px; max-width: 1280px; margin: 0 auto; height: calc(100dvh - 54px); }
+  aside { display: flex; flex-direction: column; gap: 14px; overflow-y: auto; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+  .card h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); margin: 0 0 8px; }
+  .casos button, .acciones button { display: block; width: 100%; text-align: left; margin: 0 0 6px; }
+  button { font: inherit; font-size: 13px; cursor: pointer; border: 1px solid var(--line); background: var(--panel); color: var(--ink); border-radius: 8px; padding: 7px 10px; }
+  button:hover { border-color: var(--accent); }
+  button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  button:disabled { opacity: .5; cursor: default; }
+  .casos small { color: var(--muted); display: block; font-size: 11.5px; }
+  section.chat { display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; min-height: 0; }
+  #mensajes { flex: 1; overflow-y: auto; padding: 18px; display: flex; flex-direction: column; gap: 14px; }
+  .msg { max-width: 92%; }
+  .msg.usuario { align-self: flex-end; background: var(--user); color: #fff; padding: 9px 13px; border-radius: 12px 12px 2px 12px; white-space: pre-wrap; }
+  .msg.asistente { align-self: stretch; max-width: 100%; }
+  .burbuja { padding: 4px 2px; }
+  .burbuja.error { background: var(--err-soft); color: var(--err); padding: 10px 12px; border-radius: 8px; }
+  .burbuja table { border-collapse: collapse; margin: 8px 0; font-size: 13.5px; display: block; overflow-x: auto; }
+  .burbuja th, .burbuja td { border: 1px solid var(--line); padding: 5px 8px; text-align: left; vertical-align: top; }
+  .burbuja th { background: var(--code); }
+  .burbuja code { background: var(--code); padding: 1px 5px; border-radius: 4px; font-size: 13px; }
+  .burbuja pre { background: var(--code); padding: 10px; border-radius: 6px; overflow-x: auto; }
+  .tools { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+  details.tool { border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 6px; background: var(--bg); font-size: 13px; }
+  details.tool.fallo { border-left-color: var(--err); }
+  details.tool summary { cursor: pointer; padding: 6px 10px; list-style: none; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+  details.tool summary::-webkit-details-marker { display: none; }
+  .tname { font-family: ui-monospace, Menlo, Consolas, monospace; font-weight: 600; }
+  .tres { color: var(--muted); }
+  .tms { color: var(--muted); font-size: 11px; margin-left: auto; }
+  details.tool pre { margin: 0; padding: 8px 10px; border-top: 1px solid var(--line); max-height: 280px; overflow: auto; font-size: 12px; white-space: pre-wrap; word-break: break-word; }
+  .nota { color: var(--warn); font-size: 12px; padding: 0 10px 6px; }
+  .confirmacion { margin-top: 10px; border: 1px solid var(--warn-line); background: var(--warn-soft); border-radius: 8px; padding: 10px 12px; color: var(--warn); }
+  .confirmacion strong { display: block; margin-bottom: 6px; }
+  .confirmacion button { margin-right: 6px; }
+  .pensando { color: var(--muted); font-size: 13px; display: flex; align-items: center; gap: 8px; }
+  .pensando i { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); animation: p 1s infinite alternate; }
+  @keyframes p { from { opacity: .2; } to { opacity: 1; } }
+  form { display: flex; gap: 8px; padding: 12px; border-top: 1px solid var(--line); }
+  form.alerta { background: var(--warn-soft); }
+  textarea { flex: 1; resize: none; font: inherit; padding: 9px 11px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); min-height: 44px; max-height: 140px; }
+  .vacio { color: var(--muted); margin: auto; text-align: center; max-width: 440px; }
+  .vacio code { background: var(--code); padding: 1px 5px; border-radius: 4px; }
+  dialog { width: min(900px, 94vw); border: 1px solid var(--line); border-radius: 10px; background: var(--panel); color: var(--ink); padding: 0; }
+  dialog header { position: static; }
+  dialog pre { margin: 0; padding: 14px 18px; max-height: 70vh; overflow: auto; font-size: 12.5px; white-space: pre-wrap; }
+  @media (max-width: 780px) {
+    main { grid-template-columns: 1fr; height: auto; padding: 12px 16px; }
+    aside { order: 2; }
+    section.chat { height: 78dvh; }
+    .casos { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    .casos button { margin: 0; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Agente de Órdenes de Compra <span>· SAP simulado</span></h1>
+  <span id="estado" class="badge">conectando…</span>
+</header>
+<main>
+  <aside>
+    <div class="card">
+      <h2>Solicitudes</h2>
+      <div class="casos" id="casos"></div>
+    </div>
+    <div class="card acciones">
+      <h2>Verificación y auditoría</h2>
+      <button id="btnDemo" class="primary">Ejecutar demo.ts (sin modelo)</button>
+      <button id="btnControl">Ver log de control (control.csv)</button>
+      <button id="btnOrdenes">Ver OC en SAP simulado</button>
+      <button id="btnNueva">Nueva sesión</button>
+    </div>
+  </aside>
+  <section class="chat">
+    <div id="mensajes">
+      <div class="vacio" id="vacio">Escribe, por ejemplo: <code>Procesa la solicitud "sol-004". Muéstrame la OC como quedaría en SAP, qué validaciones pasó y cuáles no, y no la crees hasta que yo lo confirme.</code><br><br>O elige una solicitud a la izquierda.</div>
+    </div>
+    <form id="form">
+      <textarea id="entrada" placeholder="Escribe a la analista virtual…" rows="1"></textarea>
+      <button class="primary" id="enviar" type="submit">Enviar</button>
+    </form>
+  </section>
+</main>
+<dialog id="dlg">
+  <header><h1 id="dlgTitulo">Resultado</h1><button id="dlgCerrar">Cerrar</button></header>
+  <pre id="dlgTexto"></pre>
+</dialog>
+<script>
+const CASOS = [
+  ["sol-001", "Licencias antivirus"], ["sol-002", "Herramienta de pruebas"], ["sol-003", "Mobiliario nueva sede"],
+  ["sol-004", "Horas arquitectura nube"], ["sol-005", "Papelería y tóner"], ["sol-006", "Diademas soporte"],
+];
+const $ = (id) => document.getElementById(id);
+const mensajes = $("mensajes"), entrada = $("entrada"), form = $("form");
+let ocupado = false;
+
+function leerSesion() { try { return sessionStorage.getItem("sesionOC"); } catch { return null; } }
+function guardarSesion(id) { try { sessionStorage.setItem("sesionOC", id); } catch {} }
+let sessionId = leerSesion() || crypto.randomUUID();
+guardarSesion(sessionId);
+
+function esc(t) { const d = document.createElement("div"); d.textContent = t; return d.innerHTML; }
+function md(t) {
+  if (window.marked && window.DOMPurify) return DOMPurify.sanitize(marked.parse(t));
+  return `<p style="white-space:pre-wrap">${esc(t)}</p>`;
+}
+function scroll() { mensajes.scrollTop = mensajes.scrollHeight; }
+function quitarVacio() { $("vacio")?.remove(); }
+
+function tarjetaTool(t) {
+  const d = document.createElement("details");
+  d.className = "tool" + (t.ok ? "" : " fallo");
+  d.innerHTML = `<summary><span>${t.ok ? "🔧" : "⛔"}</span><span class="tname">${esc(t.nombre)}</span><span class="tres">${esc(t.resumen)}</span><span class="tms">${t.ms} ms</span></summary>`
+    + (t.nota ? `<div class="nota">⚠️ ${esc(t.nota)}</div>` : "")
+    + `<pre><b>Argumentos</b>\n${esc(JSON.stringify(t.args, null, 2))}\n\n<b>Resultado</b>\n${esc(JSON.stringify(t.resultado, null, 2))}</pre>`;
+  return d;
+}
+
+function agregarUsuario(texto) {
+  quitarVacio();
+  const div = document.createElement("div");
+  div.className = "msg usuario"; div.textContent = texto;
+  mensajes.appendChild(div); scroll();
+}
+
+function agregarAsistente(r) {
+  const div = document.createElement("div");
+  div.className = "msg asistente";
+  if (r.toolCalls?.length) {
+    const box = document.createElement("div"); box.className = "tools";
+    r.toolCalls.forEach((t) => box.appendChild(tarjetaTool(t)));
+    div.appendChild(box);
+  }
+  const b = document.createElement("div");
+  b.className = "burbuja" + (r.error ? " error" : "");
+  b.innerHTML = md(r.reply || "");
+  div.appendChild(b);
+  if (r.needsConfirmation) {
+    const c = document.createElement("div"); c.className = "confirmacion";
+    c.innerHTML = `<strong>⚠️ El agente espera tu confirmación antes de crear la OC</strong>`;
+    const si = document.createElement("button"); si.className = "primary"; si.textContent = "Confirmo";
+    const no = document.createElement("button"); no.textContent = "No, no la crees";
+    si.onclick = () => enviar("Confirmo");
+    no.onclick = () => enviar("No, no la crees. Déjala pendiente.");
+    c.append(si, no); div.appendChild(c);
+  }
+  form.classList.toggle("alerta", !!r.needsConfirmation);
+  mensajes.appendChild(div); scroll();
+}
+
+function pensando(on) {
+  ocupado = on; $("enviar").disabled = on;
+  if (on) {
+    const p = document.createElement("div"); p.id = "pensando"; p.className = "pensando";
+    p.innerHTML = "<i></i> El agente está pensando y ejecutando herramientas…";
+    mensajes.appendChild(p); scroll();
+  } else $("pensando")?.remove();
+}
+
+async function enviar(texto) {
+  texto = texto.trim();
+  if (!texto || ocupado) return;
+  document.querySelectorAll(".confirmacion button").forEach((b) => (b.disabled = true));
+  agregarUsuario(texto); entrada.value = ""; pensando(true);
+  try {
+    const res = await fetch("/api/chat", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ sessionId, message: texto }) });
+    const r = await res.json();
+    if (!res.ok) agregarAsistente({ reply: `⚠️ ${r.error || "Error del servidor"}`, error: true });
+    else { sessionId = r.sessionId; guardarSesion(sessionId); agregarAsistente(r); }
+  } catch {
+    agregarAsistente({ reply: "⚠️ No fue posible contactar al servidor. Si el enlace estaba inactivo, puede tardar ~1 minuto en despertar; intenta de nuevo.", error: true });
+  } finally { pensando(false); entrada.focus(); }
+}
+
+form.addEventListener("submit", (e) => { e.preventDefault(); enviar(entrada.value); });
+entrada.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); enviar(entrada.value); } });
+
+CASOS.forEach(([c, d]) => {
+  const b = document.createElement("button");
+  b.innerHTML = `<b>${c}</b><small>${esc(d)}</small>`;
+  b.onclick = () => enviar(`Procesa la solicitud "${c}". Muéstrame la OC como quedaría en SAP y qué validaciones pasó y cuáles no.`);
+  $("casos").appendChild(b);
+});
+
+function dialogo(titulo, texto) { $("dlgTitulo").textContent = titulo; $("dlgTexto").textContent = texto; $("dlg").showModal(); }
+$("dlgCerrar").onclick = () => $("dlg").close();
+
+$("btnDemo").onclick = async (e) => {
+  e.target.disabled = true; e.target.textContent = "Ejecutando…";
+  try { const r = await (await fetch("/api/demo", { method: "POST" })).json(); dialogo("demo.ts · 6 casos sin modelo de lenguaje", r.texto || r.error); }
+  catch { dialogo("demo.ts", "No fue posible ejecutar la demo."); }
+  finally { e.target.disabled = false; e.target.textContent = "Ejecutar demo.ts (sin modelo)"; }
+};
+async function verTexto(url, titulo, vacio) {
+  const res = await fetch(url);
+  dialogo(titulo, res.ok ? await res.text() : vacio);
+}
+$("btnControl").onclick = () => verTexto("/api/control", "out/control.csv (intentos desde el chat)", "Aún no hay intentos registrados desde el chat.");
+$("btnOrdenes").onclick = () => verTexto("/api/ordenes", "out/sap/ordenes.jsonl (OC creadas desde el chat)", "Aún no hay OC creadas desde el chat.");
+$("btnNueva").onclick = () => { sessionId = crypto.randomUUID(); guardarSesion(sessionId); mensajes.innerHTML = ""; form.classList.remove("alerta"); };
+
+fetch("/api/health").then((r) => r.json()).then((h) => {
+  const e = $("estado");
+  if (h.provider === "ninguno") { e.textContent = "sin clave de modelo · demo disponible"; e.classList.add("off"); }
+  else e.textContent = `${h.provider} · ${h.model}`;
+}).catch(() => { $("estado").textContent = "servidor no disponible"; $("estado").classList.add("off"); });
+</script>
+</body>
+</html>
