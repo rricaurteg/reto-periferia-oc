@@ -76,9 +76,12 @@ function seguirPendientes(s: Sesion, nombre: string, caso: string, r: Json): voi
   if (nombre === "oc_crear" && r.ok !== true && r.requiere_confirmacion === true) s.pendientes.add(caso)
 }
 
-function pideConfirmacion(texto: string): boolean {
-  const cola = texto.slice(-400)
-  return cola.includes("?") && /confirm/i.test(cola)
+/** ¿La ÚLTIMA pregunta del texto pide confirmar? (evita falsos positivos como "Excepción confirmada … ¿Quieres procesar otra?") */
+export function pideConfirmacion(texto: string): boolean {
+  const fin = texto.lastIndexOf("?")
+  if (fin === -1) return false
+  const inicio = Math.max(texto.lastIndexOf("¿", fin), texto.lastIndexOf("\n", fin) + 1, 0)
+  return /confirm/i.test(texto.slice(inicio, fin + 1))
 }
 
 async function ejecutarLlamada(
